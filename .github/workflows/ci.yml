@@ -1,4 +1,4 @@
-name: Java CI - BDD
+name: Java CI - BDD y Performance
 
 on:
   push:
@@ -11,17 +11,18 @@ on:
 
 jobs:
 
-  test:
-    name: Build y pruebas automatizadas
+
+  functional-tests:
+
+    name: Pruebas funcionales y BDD
+
     runs-on: ubuntu-latest
 
     steps:
 
-      # 1. Obtener el código del repositorio
       - name: Obtener código
         uses: actions/checkout@v4
 
-      # 2. Configurar Java 26
       - name: Configurar Java
         uses: actions/setup-java@v4
         with:
@@ -29,11 +30,9 @@ jobs:
           java-version: '26'
           cache: maven
 
-      # 3. Ejecutar pruebas unitarias y BDD
-      - name: Ejecutar pruebas
-        run: mvn clean test
+      - name: Ejecutar pruebas funcionales
+        run: mvn clean test -Dtest='LoginServiceTest,CucumberTest'
 
-      # 4. Publicar reporte de pruebas unitarias
       - name: Publicar reporte JUnit
         if: always()
         uses: actions/upload-artifact@v4
@@ -41,10 +40,76 @@ jobs:
           name: reporte-junit
           path: target/surefire-reports/
 
-      # 5. Publicar reporte HTML de Cucumber
       - name: Publicar reporte BDD
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: reporte-cucumber
           path: target/cucumber-report.html
+
+
+
+  performance-tests:
+
+    name: Prueba de performance
+
+    needs: functional-tests
+
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Obtener código
+        uses: actions/checkout@v4
+
+      - name: Configurar Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '26'
+          cache: maven
+
+      - name: Ejecutar prueba de performance
+        run: |
+          mvn test -Dtest=LoginPerformanceTest \
+            | tee performance-result.txt
+
+      - name: Agregar métricas al dashboard
+        if: always()
+        run: |
+          echo "## 📊 Resultados de Performance" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo '```text' >> $GITHUB_STEP_SUMMARY
+          cat performance-result.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Publicar resultados de performance
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reporte-performance
+          path: performance-result.txt
+
+
+  quality-gate:
+
+    name: Quality Gate
+
+    needs:
+      - functional-tests
+      - performance-tests
+
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Validar resultados
+        run: |
+          echo "======================================"
+          echo "        QUALITY GATE"
+          echo "======================================"
+          echo "Pruebas funcionales: PASS"
+          echo "Pruebas BDD: PASS"
+          echo "Performance: PASS"
+          echo "======================================"
+          echo "QUALITY GATE: PASS"

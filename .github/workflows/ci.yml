@@ -9,8 +9,8 @@ on:
     branches:
       - master
 
-jobs:
 
+jobs:
 
   functional-tests:
 
@@ -20,9 +20,11 @@ jobs:
 
     steps:
 
+      # Descargar el código del repositorio
       - name: Obtener código
         uses: actions/checkout@v4
 
+      # Configurar Java
       - name: Configurar Java
         uses: actions/setup-java@v4
         with:
@@ -30,9 +32,12 @@ jobs:
           java-version: '26'
           cache: maven
 
+      # Ejecutar pruebas unitarias y escenarios BDD
       - name: Ejecutar pruebas funcionales
-        run: mvn clean test -Dtest='LoginServiceTest,CucumberTest'
+        run: |
+          mvn clean test -Dtest='LoginServiceTest,CucumberTest'
 
+      # Publicar reportes generados por Maven/JUnit
       - name: Publicar reporte JUnit
         if: always()
         uses: actions/upload-artifact@v4
@@ -40,13 +45,13 @@ jobs:
           name: reporte-junit
           path: target/surefire-reports/
 
+      # Publicar reporte HTML de Cucumber
       - name: Publicar reporte BDD
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: reporte-cucumber
           path: target/cucumber-report.html
-
 
 
   performance-tests:
@@ -57,11 +62,19 @@ jobs:
 
     runs-on: ubuntu-latest
 
+    # Valores que serán enviados al Quality Gate
+    outputs:
+      tps: ${{ steps.metrics.outputs.tps }}
+      latency: ${{ steps.metrics.outputs.latency }}
+      errors: ${{ steps.metrics.outputs.errors }}
+
     steps:
 
+      # Descargar el código
       - name: Obtener código
         uses: actions/checkout@v4
 
+      # Configurar Java
       - name: Configurar Java
         uses: actions/setup-java@v4
         with:
@@ -69,21 +82,70 @@ jobs:
           java-version: '26'
           cache: maven
 
+      # Ejecutar prueba de performance
       - name: Ejecutar prueba de performance
         run: |
           mvn test -Dtest=LoginPerformanceTest \
             | tee performance-result.txt
 
-      - name: Agregar métricas al dashboard
+      # Extraer las métricas generadas por la prueba
+      - name: Extraer métricas
+        id: metrics
+        run: |
+
+          TPS=$(grep "TPS:" performance-result.txt | \
+            sed 's/.*TPS: //')
+
+          LATENCIA=$(grep "Latencia promedio:" performance-result.txt | \
+            sed 's/.*Latencia promedio: //' | \
+            sed 's/ ms//')
+
+          ERRORES=$(grep "Tasa de errores:" performance-result.txt | \
+            sed 's/.*Tasa de errores: //' | \
+            sed 's/%//')
+
+          echo "TPS=$TPS"
+          echo "LATENCIA=$LATENCIA ms"
+          echo "ERRORES=$ERRORES %"
+
+          # Guardar valores como outputs del job
+          echo "tps=$TPS" >> "$GITHUB_OUTPUT"
+          echo "latency=$LATENCIA" >> "$GITHUB_OUTPUT"
+          echo "errors=$ERRORES" >> "$GITHUB_OUTPUT"
+
+
+      # Mostrar las métricas en el resumen de GitHub Actions
+      - name: Generar dashboard de métricas
         if: always()
         run: |
-          echo "## 📊 Resultados de Performance" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo '```text' >> $GITHUB_STEP_SUMMARY
-          cat performance-result.txt >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
 
-      - name: Publicar resultados de performance
+          TPS="${{ steps.metrics.outputs.tps }}"
+          LATENCIA="${{ steps.metrics.outputs.latency }}"
+          ERRORES="${{ steps.metrics.outputs.errors }}"        
+
+          echo "## Resultados de Performance" \
+            >> "$GITHUB_STEP_SUMMARY"
+
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+
+          echo "| Métrica | Resultado | Umbral |" \
+            >> "$GITHUB_STEP_SUMMARY"
+
+          echo "|---|---:|---:|" \
+            >> "$GITHUB_STEP_SUMMARY"
+
+          echo "| TPS | $TPS | > 1000 |" \
+            >> "$GITHUB_STEP_SUMMARY"
+
+          echo "| Latencia | $LATENCIA ms | < 1 ms |" \
+            >> "$GITHUB_STEP_SUMMARY"
+
+          echo "| Tasa de errores | $ERRORES % | < 1 % |" \
+            >> "$GITHUB_STEP_SUMMARY"
+
+
+      # Guardar el resultado completo como artefacto
+      - name: Publicar reporte de performance
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -103,13 +165,66 @@ jobs:
 
     steps:
 
-      - name: Validar resultados
+      # Evaluar las métricas obtenidas
+      - name: Evaluar métricas de calidad
         run: |
+
+          TPS="${{ needs.performance-tests.outputs.tps }}"
+          LATENCIA="${{ needs.performance-tests.outputs.latency }}"
+          ERRORES="${{ needs.performance-tests.outputs.errors }}"
+
           echo "======================================"
-          echo "        QUALITY GATE"
+          echo "           QUALITY GATE"
           echo "======================================"
-          echo "Pruebas funcionales: PASS"
-          echo "Pruebas BDD: PASS"
-          echo "Performance: PASS"
+
+          echo "TPS: $TPS"
+          echo "Latencia: $LATENCIA ms"
+          echo "Tasa de errores: $ERRORES %"
+
           echo "======================================"
+
+          # Verificar TPS mínimo
+          if (( $(echo "$TPS < 1000" | bc -l) )); then
+            echo "QUALITY GATE: TPS inferior a 1000"
+            exit 1
+          fi
+
+          # Verificar latencia máxima
+          if (( $(echo "$LATENCIA >= 1" | bc -l) )); then
+            echo "QUALITY GATE: Latencia igual o superior a 1 ms"
+            exit 1
+          fi
+
+          # Verificar tasa máxima de errores
+          if (( $(echo "$ERRORES >= 1" | bc -l) )); then
+            echo "QUALITY GATE: Tasa de errores igual o superior al 1%"
+            exit 1
+          fi
+
           echo "QUALITY GATE: PASS"
+
+
+      # Mostrar resultado en el resumen
+      - name: Publicar resultado del Quality Gate
+        if: always()
+        run: |
+
+          echo "## Quality Gate" \
+            >> "$GITHUB_STEP_SUMMARY"
+
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+
+          echo "| Criterio | Umbral |" \
+            >> "$GITHUB_STEP_SUMMARY"
+
+          echo "|---|---:|" \
+            >> "$GITHUB_STEP_SUMMARY"
+
+          echo "| TPS | > 1000 |" \
+            >> "$GITHUB_STEP_SUMMARY"
+
+          echo "| Latencia | < 1 ms |" \
+            >> "$GITHUB_STEP_SUMMARY"
+
+          echo "| Errores | < 1 % |" \
+            >> "$GITHUB_STEP_SUMMARY"

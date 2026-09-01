@@ -1,0 +1,50 @@
+name: Java CI - BDD
+
+on:
+  push:
+    branches:
+      - master
+
+  pull_request:
+    branches:
+      - master
+
+jobs:
+
+  test:
+    name: Build y pruebas automatizadas
+    runs-on: ubuntu-latest
+
+    steps:
+
+      # 1. Obtener el código del repositorio
+      - name: Obtener código
+        uses: actions/checkout@v4
+
+      # 2. Configurar Java 26
+      - name: Configurar Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '26'
+          cache: maven
+
+      # 3. Ejecutar pruebas unitarias y BDD
+      - name: Ejecutar pruebas
+        run: mvn clean test
+
+      # 4. Publicar reporte de pruebas unitarias
+      - name: Publicar reporte JUnit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reporte-junit
+          path: target/surefire-reports/
+
+      # 5. Publicar reporte HTML de Cucumber
+      - name: Publicar reporte BDD
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reporte-cucumber
+          path: target/cucumber-report.html

@@ -1,143 +1,131 @@
-# Proyecto de Pruebas Automatizadas e Integración Continua
+# Proyecto de Pruebas Automatizadas, BDD e Integración Continua
 
-## Objetivo
+Proyecto académico que implementa pruebas automatizadas para una funcionalidad de **inicio de sesión**, integrando pruebas unitarias, BDD, pruebas de performance e integración continua.
 
-Este proyecto demuestra la implementación de un flujo básico de integración continua en Java.
+## Tecnologías
 
-Se utiliza Git para el control de versiones, Maven para la gestión de dependencias y JUnit para la ejecución de pruebas unitarias automatizadas. Además, se utiliza GitHub Actions para compilar y ejecutar las pruebas automáticamente en cada cambio enviado al repositorio.
-
----
-
-## Tecnologías utilizadas
-
-* Java
+* Java 26
 * Maven
 * JUnit 5
+* Cucumber
+* Gherkin
 * Git
-* GitHub
 * GitHub Actions
 
----
+## Funcionalidad
 
-## Estructura del proyecto
+El proyecto implementa un servicio de autenticación que valida un usuario y contraseña.
 
-* src/main/java: contiene el código principal de la aplicación.
-* src/test/java: contiene las pruebas unitarias.
-* pom.xml: configura Maven y las dependencias del proyecto.
-* .gitignore: define los archivos que no serán incluidos en Git.
-* .github/workflows/ci.yml: contiene la configuración del pipeline de integración continua.
+Credenciales utilizadas para las pruebas:
 
----
+Usuario: admin
+Contraseña: 123456
 
-## Archivos principales
+## Pruebas
 
-### Calculadora.java
+### Pruebas unitarias
 
-Contiene las operaciones principales de la aplicación:
+LoginServiceTest.java contiene pruebas para:
 
-* Sumar dos números.
-* Restar dos números.
+* Autenticación con credenciales válidas.
+* Contraseña incorrecta.
+* Usuario incorrecto.
+* Credenciales nulas.
 
-### CalculadoraTest.java
-
-Contiene las pruebas unitarias para verificar el correcto funcionamiento de las operaciones de suma y resta.
-
-### pom.xml
-
-Configura el proyecto Maven e incorpora JUnit como dependencia para las pruebas automatizadas.
-
----
-
-## Comandos utilizados
-
-### Verificar herramientas instaladas
-
-java -version
-mvn -version
-git --version
-
-### Inicializar el repositorio
-
-git init
-git status
-
-### Crear y utilizar una rama
-
-git branch feature/calculadora
-git switch feature/calculadora
-
-### Realizar un commit
-
-git add .
-git commit -m "mensaje descriptivo"
-
-### Visualizar el historial
-
-git log --oneline --graph --all
-
-### Ejecutar las pruebas
+Ejecutar:
 
 mvn test
 
+### Pruebas BDD
 
----
+Los escenarios se encuentran en:
 
-## Pruebas automatizadas
+src/test/resources/features/login.feature
 
-El proyecto incluye dos pruebas unitarias:
+Se implementan:
 
-1. Verificación de la operación de suma.
-2. Verificación de la operación de resta.
+* Un Scenario para login exitoso.
+* Un Scenario Outline para credenciales inválidas.
+* Tres ejemplos mediante Examples.
 
-Las pruebas son atómicas e independientes, ya que cada una verifica una funcionalidad específica sin depender de la ejecución de la otra.
+Las definiciones de pasos se encuentran en:
 
----
+src/test/java/cl/empresa/bdd/LoginSteps.java
 
-## Pipeline de Integración Continua
+## Prueba de performance
+
+LoginPerformanceTest.java realiza múltiples operaciones de autenticación y calcula:
+
+* TPS (Transactions Per Second).
+* Latencia promedio.
+* Tasa de errores.
+
+Ejecutar:
+
+mvn test -Dtest=LoginPerformanceTest
+
+## Integración continua
 
 El pipeline está definido en:
 
 .github/workflows/ci.yml
 
-El pipeline se ejecuta automáticamente ante un:
+Se ejecuta mediante GitHub Actions ante:
 
-* push a la rama main.
-* pull request hacia la rama main.
+* Push a master.
+* Pull Request hacia master.
 
-El proceso realiza las siguientes acciones:
+El flujo implementado es:
 
-1. Obtiene el código del repositorio.
-2. Configura el entorno de Java.
-3. Ejecuta la compilación y las pruebas mediante Maven.
-4. Genera y publica los resultados de las pruebas como un artefacto.
+Pruebas funcionales y BDD
+          
+Prueba de performance
+          
+Métricas
+          
+Quality Gate
 
-El comando principal ejecutado por el pipeline es:
+## Reporting
 
-mvn test
+El pipeline genera los siguientes artefactos:
 
-Los reportes generados por Maven se encuentran en:
+* Reporte JUnit.
+* Reporte HTML de Cucumber.
+* Reporte de performance.
 
-target/surefire-reports/
+Además, las métricas de performance se muestran en el resumen de GitHub Actions.
 
----
+## Quality Gate
 
-## Ejecución local
+Se utilizan los siguientes umbrales:
 
-Para ejecutar el proyecto localmente, abrir una terminal en la carpeta raíz y ejecutar:
+| Métrica         | Umbral |
+| --------------- | -----: |
+| TPS             | > 1000 |
+| Latencia        | < 1 ms |
+| Tasa de errores |  < 1 % |
 
-mvn test
-
-Si las pruebas se ejecutan correctamente, Maven mostrará un resultado exitoso sin errores ni fallos.
-
----
+Si los criterios no se cumplen, el Quality Gate provoca el fallo del pipeline.
 
 ## Control de versiones
 
-Durante el desarrollo se utiliza Git para registrar los cambios realizados en el proyecto.
+El proyecto utiliza Git para gestionar los cambios y GitHub como repositorio remoto.
 
-Se recomienda realizar commits frecuentes y utilizar mensajes descriptivos, por ejemplo:
+Ejemplos de commits:
 
-feat: agregar operaciones de suma y resta
+feat: agregar funcionalidad de login
 test: agregar pruebas unitarias
-chore: agregar archivo gitignore
-docs: actualizar documentacion del proyecto
+test: agregar escenarios BDD
+perf: agregar prueba de rendimiento
+ci: configurar pipeline
+docs: actualizar README
+
+## Ejecución completa
+
+Para ejecutar todas las pruebas:
+
+mvn clean test
+
+El resultado esperado es:
+
+BUILD SUCCESS
